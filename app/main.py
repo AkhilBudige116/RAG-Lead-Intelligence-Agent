@@ -1,3 +1,5 @@
+import os
+import gc
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +8,7 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.db.seed import init_db, seed_sectors
 from app.rag.indexer import SectorKnowledgeIndexer
+from app.rag.embeddings import get_embedding_provider
 
 from app.api.uploads import router as uploads_router
 from app.api.emails import router as emails_router
@@ -21,15 +24,42 @@ from app.api.export import router as export_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Starting up RAG-Based Lead Segregation Agent service...")
+    logger.info("==================================================================")
+    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION} (PID: {os.getpid()})")
+    logger.info(f"Environment: {settings.ENVIRONMENT} | Host: {settings.HOST} | Configured Port: {settings.PORT}")
+    logger.info("==================================================================")
     try:
+        # Step 1: Database Initialization
+        logger.info("[STARTUP 1/5] Initializing database schema and tables...")
         init_db()
+        logger.info("[STARTUP 1/5 COMPLETE] Database schema verified.")
+
+        # Step 2: Sector Seeding
+        logger.info("[STARTUP 2/5] Seeding/verifying 13 standard industry sectors...")
         seed_sectors()
+        logger.info("[STARTUP 2/5 COMPLETE] 13 industry sectors ready in database.")
+
+        # Step 3: Vector Database Check & Indexing
+        logger.info(f"[STARTUP 3/5] Initializing vector store (provider: {settings.VECTOR_STORE})...")
         indexer = SectorKnowledgeIndexer()
-        indexer.reindex_all_sectors()
-        logger.info("System startup routines and knowledge base indexing completed.")
+        chunks_indexed = indexer.reindex_all_sectors(force=False)
+        logger.info(f"[STARTUP 3/5 COMPLETE] Vector store ready with {chunks_indexed} sector chunks.")
+
+        # Step 4: Shared FastEmbed Embedding Model Singleton
+        logger.info(f"[STARTUP 4/5] Verifying shared embedding service (provider: {settings.EMBEDDING_PROVIDER})...")
+        embedding_provider = get_embedding_provider()
+        if hasattr(embedding_provider, "warmup"):
+            embedding_provider.warmup()
+        logger.info(f"[STARTUP 4/5 COMPLETE] Shared embedding provider ready: {embedding_provider.model_version}")
+
+        # Step 5: Server Startup Success & Memory Cleanup
+        gc.collect()
+        logger.info(
+            f"[STARTUP 5/5 COMPLETE] Server startup routines completed successfully! "
+            f"Ready on http://{settings.HOST}:{settings.PORT}"
+        )
     except Exception as e:
-        logger.error(f"Startup initialization error: {e}")
+        logger.error(f"Startup initialization error: {e}", exc_info=True)
     yield
     # Shutdown
     logger.info("Shutting down RAG Lead Segregation Agent service.")

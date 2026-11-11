@@ -1,8 +1,10 @@
 import os
+import gc
 import math
 import hashlib
+import threading
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 from app.core.config import settings
 from app.core.logging import logger
 
@@ -28,22 +30,63 @@ class BaseEmbeddingProvider(ABC):
 
 
 class FastEmbedProvider(BaseEmbeddingProvider):
-    def __init__(self, model_name: str = "BAAI/bge-small-en"):
+    def __init__(
+        self,
+        model_name: str = "BAAI/bge-small-en",
+        cache_dir: Optional[str] = None
+    ):
         self._model_name = model_name
+        self._cache_dir = cache_dir or settings.FASTEMBED_CACHE_PATH
         self._embedding_model = None
-        if TextEmbedding is not None:
+        self._model_lock = threading.Lock()
+        logger.info(
+            f"Registered shared FastEmbed provider for '{model_name}' "
+            f"(lazy loading enabled, cache_dir='{self._cache_dir}')."
+        )
+
+    def _get_model(self):
+        """Thread-safe lazy initializer for the underlying ONNX TextEmbedding model."""
+        if self._embedding_model is None and TextEmbedding is not None:
+            with self._model_lock:
+                if self._embedding_model is None:
+                    try:
+                        logger.info(
+                            f"[EMBEDDING INIT] Loading shared FastEmbed model: {self._model_name} "
+                            f"(threads=1, cache_dir={self._cache_dir})..."
+                        )
+                        # Set threads=1 to avoid large thread pool overhead in 512MB RAM environments
+                        self._embedding_model = TextEmbedding(
+                            model_name=self._model_name,
+                            cache_dir=self._cache_dir,
+                            threads=1
+                        )
+                        logger.info(f"[EMBEDDING READY] FastEmbed model '{self._model_name}' loaded successfully.")
+                    except Exception as e:
+                        logger.warning(f"Could not load FastEmbed {self._model_name}: {e}. Deterministic fallback active.")
+        return self._embedding_model
+
+    @property
+    def is_loaded(self) -> bool:
+        return self._embedding_model is not None
+
+    def warmup(self) -> None:
+        """Explicit warmup to verify model readiness and run immediate garbage collection."""
+        model = self._get_model()
+        if model is not None:
             try:
-                logger.info(f"Loading FastEmbed model: {model_name}")
-                self._embedding_model = TextEmbedding(model_name=model_name)
+                _ = list(model.embed(["startup warmup probe"]))
+                gc.collect()
+                logger.info(f"[EMBEDDING WARMUP] Model '{self._model_name}' primed and ready.")
             except Exception as e:
-                logger.warning(f"Could not load FastEmbed {model_name}: {e}. Fallback enabled.")
+                logger.warning(f"Model warmup warning: {e}")
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         if not texts:
             return []
-        if self._embedding_model:
+        model = self._get_model()
+        if model:
             try:
-                embeddings = list(self._embedding_model.embed(texts))
+                embeddings = list(model.embed(texts))
                 return [emb.tolist() if hasattr(emb, "tolist") else list(emb) for emb in embeddings]
             except Exception as e:
                 logger.error(f"FastEmbed batch failed: {e}")
@@ -97,7 +140,22 @@ class MockEmbeddingProvider(BaseEmbeddingProvider):
         return "mock-deterministic-384"
 
 
+# Thread-safe global singleton
+_EMBEDDING_PROVIDER_INSTANCE: Optional[BaseEmbeddingProvider] = None
+_EMBEDDING_LOCK = threading.Lock()
+
+
 def get_embedding_provider() -> BaseEmbeddingProvider:
-    if settings.EMBEDDING_PROVIDER == "fastembed" and TextEmbedding is not None:
-        return FastEmbedProvider(model_name=settings.EMBEDDING_MODEL)
-    return MockEmbeddingProvider()
+    """Returns the shared application-wide embedding provider singleton."""
+    global _EMBEDDING_PROVIDER_INSTANCE
+    if _EMBEDDING_PROVIDER_INSTANCE is None:
+        with _EMBEDDING_LOCK:
+            if _EMBEDDING_PROVIDER_INSTANCE is None:
+                if settings.EMBEDDING_PROVIDER == "fastembed" and TextEmbedding is not None:
+                    _EMBEDDING_PROVIDER_INSTANCE = FastEmbedProvider(
+                        model_name=settings.EMBEDDING_MODEL,
+                        cache_dir=settings.FASTEMBED_CACHE_PATH
+                    )
+                else:
+                    _EMBEDDING_PROVIDER_INSTANCE = MockEmbeddingProvider()
+    return _EMBEDDING_PROVIDER_INSTANCE

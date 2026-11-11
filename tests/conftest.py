@@ -28,7 +28,7 @@ def setup_test_environment():
     db = TestingSessionLocal()
     seed_sectors(db)
     indexer = SectorKnowledgeIndexer()
-    indexer.reindex_all_sectors(db)
+    indexer.reindex_all_sectors(db, force=True)
     db.close()
     yield
     # Teardown

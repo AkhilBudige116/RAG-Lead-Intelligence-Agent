@@ -15,9 +15,27 @@ from app.core.logging import logger
 
 class PipelineProcessor:
     def __init__(self):
-        self.extractor = LeadExtractor()
-        self.retriever = SectorRetriever()
-        self.classifier = SectorClassifier()
+        self._extractor = None
+        self._retriever = None
+        self._classifier = None
+
+    @property
+    def extractor(self) -> LeadExtractor:
+        if self._extractor is None:
+            self._extractor = LeadExtractor()
+        return self._extractor
+
+    @property
+    def retriever(self) -> SectorRetriever:
+        if self._retriever is None:
+            self._retriever = SectorRetriever()
+        return self._retriever
+
+    @property
+    def classifier(self) -> SectorClassifier:
+        if self._classifier is None:
+            self._classifier = SectorClassifier()
+        return self._classifier
 
     def process_email_item(
         self,

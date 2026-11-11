@@ -1,3 +1,4 @@
+import gc
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.db.models import Sector
@@ -12,11 +13,20 @@ class SectorKnowledgeIndexer:
         self.vector_store = vector_store or get_vector_store()
         self.embedding_provider = embedding_provider or get_embedding_provider()
 
-    def reindex_all_sectors(self, db: Optional[Session] = None) -> int:
+    def reindex_all_sectors(self, db: Optional[Session] = None, force: bool = False) -> int:
         """
         Clears and re-indexes all active sectors from database into vector store.
+        If force=False and vector store already contains chunks, skips redundant embedding.
         Each sector produces 3 distinct chunks: Description, Keywords, Examples.
         """
+        existing_count = self.vector_store.count()
+        if not force and existing_count >= 39:
+            logger.info(
+                f"[VECTOR STORE READY] Vector store already contains {existing_count} indexed chunks. "
+                f"Skipping redundant re-indexing on startup."
+            )
+            return existing_count
+
         close_db = False
         if db is None:
             db = SessionLocal()
@@ -85,6 +95,7 @@ class SectorKnowledgeIndexer:
                     ids=ids,
                     embeddings=embeddings
                 )
+                gc.collect()
 
             logger.info(f"Successfully indexed {len(documents)} sector chunks across {len(sectors)} sectors.")
             return len(documents)

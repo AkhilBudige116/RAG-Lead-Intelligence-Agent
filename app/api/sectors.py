@@ -146,5 +146,5 @@ def reindex_sector(sector_id: str, db: Session = Depends(get_db)):
 def reindex_all_sectors(db: Session = Depends(get_db)):
     """Triggers complete vector re-indexing for all active sectors."""
     indexer = SectorKnowledgeIndexer()
-    chunks_count = indexer.reindex_all_sectors(db)
+    chunks_count = indexer.reindex_all_sectors(db, force=True)
     return {"message": f"All active sectors re-indexed successfully ({chunks_count} chunks generated)."}

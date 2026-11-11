@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     ENVIRONMENT: str = "development"
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = Field(default_factory=lambda: int(os.environ.get("PORT", "8000")))
     CORS_ORIGINS: Union[str, List[str]] = ["http://localhost:5173", "http://localhost:3000", "*"]
 
     # LLM Settings
@@ -29,7 +29,9 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "BAAI/bge-small-en"
     EMBEDDING_PROVIDER: str = "fastembed"  # 'fastembed', 'mock'
     VECTOR_STORE: str = "chroma"  # 'chroma' or 'supabase'
-    CHROMA_PERSIST_DIR: str = "./data/chroma"
+    CHROMA_PERSIST_DIR: str = os.environ.get("CHROMA_PERSIST_DIR", "./data/chroma")
+    FASTEMBED_CACHE_PATH: str = os.environ.get("FASTEMBED_CACHE_PATH", "./data/model_cache")
+    MODEL_CACHE_DIR: str = os.environ.get("MODEL_CACHE_DIR", "./data/model_cache")
 
     # Database
     DATABASE_URL: str = "sqlite:///./data/lead_agent.db"
@@ -58,6 +60,12 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Ensure local data directory exists
+# Set environment variables for libraries that read from env
+os.environ.setdefault("FASTEMBED_CACHE_PATH", settings.FASTEMBED_CACHE_PATH)
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+
+# Ensure local data directories exist
 os.makedirs("./data", exist_ok=True)
 os.makedirs(settings.CHROMA_PERSIST_DIR, exist_ok=True)
+os.makedirs(settings.FASTEMBED_CACHE_PATH, exist_ok=True)

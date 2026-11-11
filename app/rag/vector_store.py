@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 import os
+import threading
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 from app.core.config import settings
@@ -38,6 +39,10 @@ class VectorRepositoryInterface(ABC):
     def reset(self) -> None:
         pass
 
+    @abstractmethod
+    def count(self) -> int:
+        pass
+
 
 class ChromaVectorStore(VectorRepositoryInterface):
     COLLECTION_NAME = "sector_knowledge_base"
@@ -45,6 +50,7 @@ class ChromaVectorStore(VectorRepositoryInterface):
     def __init__(self, persist_dir: str = settings.CHROMA_PERSIST_DIR):
         self.persist_dir = persist_dir
         os.makedirs(persist_dir, exist_ok=True)
+        logger.info(f"Initializing ChromaVectorStore client at persist_dir: '{persist_dir}'")
         self.client = chromadb.PersistentClient(
             path=persist_dir,
             settings=ChromaSettings(anonymized_telemetry=False)
@@ -56,6 +62,13 @@ class ChromaVectorStore(VectorRepositoryInterface):
             name=self.COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"}
         )
+
+    def count(self) -> int:
+        try:
+            return self.collection.count()
+        except Exception as e:
+            logger.warning(f"Chroma count error: {e}")
+            return 0
 
     def add_documents(
         self,
@@ -157,8 +170,23 @@ class SupabasePgVectorStore(VectorRepositoryInterface):
     def reset(self) -> None:
         logger.info("SupabasePgVectorStore: Reset collection.")
 
+    def count(self) -> int:
+        return 0
+
+
+# Thread-safe global singleton
+_VECTOR_STORE_INSTANCE: Optional[VectorRepositoryInterface] = None
+_VECTOR_STORE_LOCK = threading.Lock()
+
 
 def get_vector_store() -> VectorRepositoryInterface:
-    if settings.VECTOR_STORE.lower() == "supabase" and settings.SUPABASE_URL:
-        return SupabasePgVectorStore()
-    return ChromaVectorStore()
+    """Returns the shared application-wide vector repository singleton."""
+    global _VECTOR_STORE_INSTANCE
+    if _VECTOR_STORE_INSTANCE is None:
+        with _VECTOR_STORE_LOCK:
+            if _VECTOR_STORE_INSTANCE is None:
+                if settings.VECTOR_STORE.lower() == "supabase" and settings.SUPABASE_URL:
+                    _VECTOR_STORE_INSTANCE = SupabasePgVectorStore()
+                else:
+                    _VECTOR_STORE_INSTANCE = ChromaVectorStore(persist_dir=settings.CHROMA_PERSIST_DIR)
+    return _VECTOR_STORE_INSTANCE
