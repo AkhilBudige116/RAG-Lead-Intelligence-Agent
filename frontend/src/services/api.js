@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/+$/, '')
+  : '';
+
 const api = axios.create({
-  baseURL: '',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -126,7 +130,7 @@ export const undoMerge = async (duplicateLogId) => {
 
 export const getExportUrl = (format = 'csv', filters = {}) => {
   const params = new URLSearchParams({ format, ...filters });
-  return `/api/export?${params.toString()}`;
+  return `${API_BASE_URL}/api/export?${params.toString()}`;
 };
 
 export default api;
