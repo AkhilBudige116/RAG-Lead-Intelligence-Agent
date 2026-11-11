@@ -1,8 +1,20 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL.replace(/\/+$/, '')
-  : '';
+// Resolve API base URL:
+// 1. Bound internal service URL injected by Vercel services (e.g. BACKEND_URL)
+// 2. Build-time environment variable (e.g. VITE_API_URL)
+// 3. Empty string fallback for relative same-origin calls via Vercel rewrites (/api/...)
+const getApiBaseUrl = () => {
+  if (typeof process !== 'undefined' && process.env?.BACKEND_URL) {
+    return process.env.BACKEND_URL.replace(/\/+$/, '');
+  }
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+  }
+  return '';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
