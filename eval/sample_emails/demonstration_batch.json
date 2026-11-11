@@ -1,0 +1,79 @@
+[
+  {
+    "sender_name": "Alex Turner",
+    "sender_email": "alex.turner@cloudscaletech.io",
+    "subject": "Kubernetes Cluster Management & Cloud Infrastructure",
+    "body": "We provide automated Kubernetes cluster management, multi-region cloud migration, and PostgreSQL database performance tuning.",
+    "signature": "Alex Turner\nVP of Cloud Engineering\nCloudScale Technologies\nPhone: +1 415-555-0182\nhttps://cloudscaletech.io"
+  },
+  {
+    "sender_name": "Clara Oswald",
+    "sender_email": "clara.oswald@cloudscaletech.io",
+    "subject": "Enterprise License Inquiry - CloudScale Technologies",
+    "body": "Following up on our cloud migration discussion to license enterprise monitoring and API gateways.",
+    "signature": "Clara Oswald\nDirector of Enterprise Sales\nCloudScale Technologies\nPhone: +1 415-555-0199\nhttps://cloudscaletech.io"
+  },
+  {
+    "sender_name": "Dr. Robert Chen",
+    "sender_email": "dr.chen@vanguardtx.com",
+    "subject": "Phase III Clinical Trials for Small-Molecule Oncology Inhibitors",
+    "body": "We are initiating global Phase III clinical trial recruitment for targeted small-molecule oncology therapeutics and hospital biomarker studies.",
+    "signature": "Dr. Robert Chen\nChief Medical Officer\nVanguard Therapeutics Inc.\nPhone: +1 617-555-3344\nhttps://vanguardtx.com"
+  },
+  {
+    "sender_name": "Dr. Jennifer Adams",
+    "sender_email": "jennifer.adams@eduvantage.edu",
+    "subject": "University Learning Management System & Online Tutoring Integration",
+    "body": "EduVantage provides scalable learning management systems (LMS), remote lecture recording tools, and adaptive STEM curriculum modules for higher education.",
+    "signature": "Dr. Jennifer Adams\nDean of Digital Learning\nEduVantage Academy\nPhone: +1 212-555-8811\nhttps://eduvantage.edu"
+  },
+  {
+    "sender_name": "Robert Evans",
+    "sender_email": "bids@skylinecontractors.com",
+    "subject": "Commercial High-Rise Structural Concrete Contracting",
+    "body": "We specialize in commercial high-rise building construction, seismic retrofitting, structural concrete pouring, and LEED-certified architecture.",
+    "signature": "Robert Evans\nProject Superintendent\nSkyline General Contractors LLC\nPhone: +1 312-555-4900\nhttps://skylinecontractors.com"
+  },
+  {
+    "sender_name": "Chloe Decker",
+    "sender_email": "chloe.decker@trendvogue.com",
+    "subject": "Omnichannel Direct-to-Consumer Apparel Distribution",
+    "body": "TrendVogue is an e-commerce direct-to-consumer brand selling sustainable organic cotton apparel, loungewear, and activewear via our online store.",
+    "signature": "Chloe Decker\nHead of E-Commerce Merchandising\nTrendVogue Apparel\nPhone: +1 213-555-9922\nhttps://trendvogue.com"
+  },
+  {
+    "sender_name": "Hank Schrader",
+    "sender_email": "hank.schrader@precisioncast.com",
+    "subject": "Automotive Die-Casting & 5-Axis CNC Machining RFQ",
+    "body": "Our industrial plant manufactures high-volume aluminum die-castings, 5-axis CNC machined titanium brackets, and precision hydraulic pump components.",
+    "signature": "Hank Schrader\nPlant Operations Manager\nPrecision Cast Metals Corp\nPhone: +1 313-555-7733\nhttps://precisioncast.com"
+  },
+  {
+    "sender_name": "Patrick Jane",
+    "sender_email": "patrick.jane@novapayglobal.com",
+    "subject": "Cross-Border Merchant Payment Processing Gateway",
+    "body": "NovaPay provides international payment gateway APIs, multi-currency credit card processing, merchant acquiring, and automated fraud prevention.",
+    "signature": "Patrick Jane\nDirector of Fintech Partnerships\nNovaPay Global\nPhone: +1 212-555-3399\nhttps://novapayglobal.com"
+  },
+  {
+    "sender_name": "Viktor Navorski",
+    "sender_email": "viktor@transglobalfreight.com",
+    "subject": "International Maritime Shipping & Cold-Chain Freight Forwarding",
+    "body": "We coordinate ocean container freight shipping, refrigerated temperature-controlled warehousing, and bonded customs brokerage clearance.",
+    "signature": "Viktor Navorski\nVP Global Logistics\nTransGlobal Freight Forwarders\nPhone: +1 201-555-6622\nhttps://transglobalfreight.com"
+  },
+  {
+    "sender_name": "Juan Valdez",
+    "sender_email": "juan.valdez@artisanroast.com",
+    "subject": "Single-Origin Arabica Wholesale Roasting Supply",
+    "body": "We operate commercial coffee roasting facilities, providing single-origin Arabica beans, cold brew nitro kegs, and bulk cafe supplies.",
+    "signature": "Juan Valdez\nMaster Coffee Roaster\nArtisan Roast Coffee Co.\nPhone: +1 503-555-4422\nhttps://artisanroast.com"
+  },
+  {
+    "sender_name": "Mark Jenkins",
+    "sender_email": "mark.personal.inquiry@gmail.com",
+    "subject": "General Question",
+    "body": "Hi, I was looking through some things and wondered if you could send over your rates and terms whenever you have a moment.",
+    "signature": "Thanks,\nMark"
+  }
+]

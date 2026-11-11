@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lead_agent_backend
+    environment:
+      - DATABASE_URL=sqlite:///./data/lead_agent.db
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-claude-3-5-sonnet-20241022}
+      - LLM_TEMPERATURE=0
+      - EMBEDDING_MODEL=BAAI/bge-small-en
+      - EMBEDDING_PROVIDER=fastembed
+      - VECTOR_STORE=chroma
+      - CHROMA_PERSIST_DIR=/app/data/chroma
+      - CONFIDENCE_THRESHOLD=0.75
+      - UPLOAD_MAX_SIZE_MB=25
+      - ENVIRONMENT=production
+    volumes:
+      - lead_data:/app/data
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: lead_agent_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  lead_data:
+    driver: local
