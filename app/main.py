@@ -1,7 +1,7 @@
 import os
 import gc
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
@@ -96,14 +96,85 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
+# Root Welcome Endpoint
+@app.get("/", tags=["Root"])
+def root():
+    """Welcome endpoint returning API metadata, docs, and health route."""
+    return {
+        "application": settings.APP_NAME,
+        "status": "Running",
+        "documentation": "/docs",
+        "health": "/api/health",
+        "version": settings.APP_VERSION,
+        "environment": settings.ENVIRONMENT
+    }
+
+
+# Favicon Endpoint to avoid unnecessary 404 logs
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    """Returns 204 No Content to silence browser favicon requests."""
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 # Health Check
 @app.get("/api/health", tags=["Health"])
 def health_check():
+    """
+    Health check endpoint reporting application readiness and dependency status:
+    - Database connectivity
+    - Vector Store availability and indexed sector chunks
+    - Embedding Provider readiness
+    """
+    db_status = "connected"
+    try:
+        from app.db.session import SessionLocal
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1"))
+        finally:
+            db.close()
+    except Exception as e:
+        db_status = f"unhealthy: {str(e)}"
+
+    vector_count = 0
+    vector_status = "ready"
+    try:
+        from app.rag.vector_store import get_vector_store
+        vs = get_vector_store()
+        vector_count = vs.count()
+    except Exception as e:
+        vector_status = f"unhealthy: {str(e)}"
+
+    embedding_status = "ready"
+    embedding_model = settings.EMBEDDING_MODEL
+    try:
+        ep = get_embedding_provider()
+        embedding_model = ep.model_version
+    except Exception as e:
+        embedding_status = f"unhealthy: {str(e)}"
+
+    overall_healthy = db_status == "connected" and not vector_status.startswith("unhealthy")
+
     return {
-        "status": "healthy",
+        "status": "healthy" if overall_healthy else "degraded",
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "environment": settings.ENVIRONMENT,
+        "dependencies": {
+            "database": db_status,
+            "vector_store": {
+                "provider": settings.VECTOR_STORE,
+                "status": vector_status,
+                "indexed_chunks": vector_count
+            },
+            "embedding": {
+                "provider": settings.EMBEDDING_PROVIDER,
+                "model": embedding_model,
+                "status": embedding_status
+            }
+        },
         "vector_store": settings.VECTOR_STORE,
         "embedding_provider": settings.EMBEDDING_PROVIDER
     }

@@ -2,12 +2,32 @@ import json
 import pytest
 
 
+def test_root_endpoint(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["application"] == "RAG-Based Lead Segregation Agent"
+    assert data["status"] == "Running"
+    assert data["documentation"] == "/docs"
+    assert data["health"] == "/api/health"
+    assert "version" in data
+
+
+def test_favicon_endpoint(client):
+    response = client.get("/favicon.ico")
+    assert response.status_code == 204
+
+
 def test_health_check(client):
     response = client.get("/api/health")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
     assert "version" in data
+    assert "dependencies" in data
+    assert data["dependencies"]["database"] == "connected"
+    assert data["dependencies"]["vector_store"]["status"] == "ready"
+    assert data["dependencies"]["embedding"]["status"] == "ready"
 
 
 def test_list_sectors(client):
