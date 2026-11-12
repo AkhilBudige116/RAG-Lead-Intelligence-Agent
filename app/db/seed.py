@@ -15,14 +15,21 @@ def init_db():
     logger.info("Database tables verified/created successfully.")
 
 
-def seed_sectors(db: Session = None) -> int:
-    """Seed or update sectors from YAML file."""
+def seed_sectors(db: Session = None, force: bool = False) -> int:
+    """Seed or update sectors from YAML file idempotently."""
     close_db = False
     if db is None:
         db = SessionLocal()
         close_db = True
 
     try:
+        # Check if sectors are already seeded to make startup fast and safe for serverless instances
+        if not force:
+            existing_count = db.query(Sector).count()
+            if existing_count >= 13:
+                logger.info(f"Database already contains {existing_count} seeded sectors. Skipping cold-start seed.")
+                return existing_count
+
         if not os.path.exists(SECTORS_FILE):
             logger.warning(f"Sectors file not found at {SECTORS_FILE}")
             return 0

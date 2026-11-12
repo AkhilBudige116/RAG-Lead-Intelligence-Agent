@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.db.models import UploadBatch
 from app.pipeline import pipeline_processor
+from app.core.config import settings
 from app.core.logging import logger
 
 router = APIRouter(prefix="/api/uploads", tags=["Uploads"])
@@ -44,16 +45,27 @@ async def upload_files(
         content = await f.read()
         files_data.append((f.filename, content))
 
-    # Trigger background processing
-    background_tasks.add_task(
-        pipeline_processor.process_batch_files,
-        batch_id=batch_id,
-        files_data=files_data
-    )
-
-    logger.info(f"Accepted batch upload {batch_id} with {len(files)} file(s).")
-    return {
-        "batch_id": batch_id,
-        "message": f"Successfully uploaded {len(files)} file(s). Batch processing initiated.",
-        "status": "pending"
-    }
+    # Trigger processing
+    if settings.IS_SERVERLESS:
+        # In serverless environments (Vercel / AWS Lambda), process inline to avoid premature context freezing
+        logger.info(f"Serverless execution detected: Processing batch {batch_id} synchronously.")
+        pipeline_processor.process_batch_files(batch_id=batch_id, files_data=files_data)
+        db.refresh(batch)
+        return {
+            "batch_id": batch_id,
+            "message": f"Successfully processed {len(files)} file(s).",
+            "status": batch.status
+        }
+    else:
+        # Long-running daemon / standard container execution with background task
+        background_tasks.add_task(
+            pipeline_processor.process_batch_files,
+            batch_id=batch_id,
+            files_data=files_data
+        )
+        logger.info(f"Accepted batch upload {batch_id} with {len(files)} file(s).")
+        return {
+            "batch_id": batch_id,
+            "message": f"Successfully uploaded {len(files)} file(s). Batch processing initiated.",
+            "status": "pending"
+        }

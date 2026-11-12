@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
         # Step 4: Shared FastEmbed Embedding Model Singleton
         logger.info(f"[STARTUP 4/5] Verifying shared embedding service (provider: {settings.EMBEDDING_PROVIDER})...")
         embedding_provider = get_embedding_provider()
-        if hasattr(embedding_provider, "warmup"):
+        if not settings.IS_SERVERLESS and hasattr(embedding_provider, "warmup"):
             embedding_provider.warmup()
         logger.info(f"[STARTUP 4/5 COMPLETE] Shared embedding provider ready: {embedding_provider.model_version}")
 

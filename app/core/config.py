@@ -1,7 +1,20 @@
 import os
-from typing import List, Union
+from pathlib import Path
+from typing import List, Union, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Serverless execution environment detection (e.g. Vercel, AWS Lambda)
+IS_SERVERLESS: bool = bool(
+    os.environ.get("VERCEL")
+    or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+    or os.environ.get("LAMBDA_TASK_ROOT")
+)
+
+# Base default directories depending on environment
+_DEFAULT_DATA_DIR = Path("/tmp/data" if IS_SERVERLESS else "./data")
+_DEFAULT_MODEL_CACHE = Path("/tmp/model_cache" if IS_SERVERLESS else "./data/model_cache")
+_DEFAULT_CHROMA_DIR = Path("/tmp/chroma" if IS_SERVERLESS else "./data/chroma")
 
 
 class Settings(BaseSettings):
@@ -14,7 +27,8 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "RAG-Based Lead Segregation Agent"
     APP_VERSION: str = "1.0.0"
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = os.environ.get("ENVIRONMENT", "development")
+    IS_SERVERLESS: bool = IS_SERVERLESS
     HOST: str = "0.0.0.0"
     PORT: int = Field(default_factory=lambda: int(os.environ.get("PORT", "8000")))
     CORS_ORIGINS: Union[str, List[str]] = ["http://localhost:5173", "http://localhost:3000", "*"]
@@ -28,15 +42,15 @@ class Settings(BaseSettings):
     # Embedding & Vector Store
     EMBEDDING_MODEL: str = "BAAI/bge-small-en"
     EMBEDDING_PROVIDER: str = "fastembed"  # 'fastembed', 'mock'
-    VECTOR_STORE: str = "chroma"  # 'chroma' or 'supabase'
-    CHROMA_PERSIST_DIR: str = os.environ.get("CHROMA_PERSIST_DIR", "./data/chroma")
-    FASTEMBED_CACHE_PATH: str = os.environ.get("FASTEMBED_CACHE_PATH", "./data/model_cache")
-    MODEL_CACHE_DIR: str = os.environ.get("MODEL_CACHE_DIR", "./data/model_cache")
+    VECTOR_STORE: str = os.environ.get("VECTOR_STORE", "chroma")  # 'chroma', 'pgvector', 'supabase'
+    CHROMA_PERSIST_DIR: str = os.environ.get("CHROMA_PERSIST_DIR", str(_DEFAULT_CHROMA_DIR))
+    FASTEMBED_CACHE_PATH: str = os.environ.get("FASTEMBED_CACHE_PATH", str(_DEFAULT_MODEL_CACHE))
+    MODEL_CACHE_DIR: str = os.environ.get("MODEL_CACHE_DIR", str(_DEFAULT_MODEL_CACHE))
 
     # Database
-    DATABASE_URL: str = "sqlite:///./data/lead_agent.db"
-    SUPABASE_URL: str = ""
-    SUPABASE_KEY: str = ""
+    DATABASE_URL: str = os.environ.get("DATABASE_URL", "sqlite:///./data/lead_agent.db")
+    SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "")
+    SUPABASE_KEY: str = os.environ.get("SUPABASE_KEY", "")
 
     # Decision Gate Thresholds
     CONFIDENCE_THRESHOLD: float = 0.75
@@ -57,6 +71,10 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
         return ["*"]
 
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.lower() in ("production", "prod")
+
 
 settings = Settings()
 
@@ -65,7 +83,23 @@ os.environ.setdefault("FASTEMBED_CACHE_PATH", settings.FASTEMBED_CACHE_PATH)
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 
-# Ensure local data directories exist
-os.makedirs("./data", exist_ok=True)
-os.makedirs(settings.CHROMA_PERSIST_DIR, exist_ok=True)
-os.makedirs(settings.FASTEMBED_CACHE_PATH, exist_ok=True)
+
+def safe_ensure_dir(path_str: Union[str, Path]) -> Optional[Path]:
+    """Safely creates directory if writable without crashing on read-only serverless filesystems."""
+    try:
+        p = Path(path_str)
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    except (OSError, PermissionError):
+        return None
+
+
+# Only attempt creating local storage directories if not running in read-only serverless mode
+if not settings.IS_SERVERLESS and not settings.is_production:
+    safe_ensure_dir("./data")
+    safe_ensure_dir(settings.CHROMA_PERSIST_DIR)
+    safe_ensure_dir(settings.FASTEMBED_CACHE_PATH)
+else:
+    # On serverless, ensure the writable /tmp cache exists
+    safe_ensure_dir(settings.FASTEMBED_CACHE_PATH)
+
